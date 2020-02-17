@@ -1,23 +1,19 @@
+# Libraries
 import numpy as np
 from math import sqrt
 import matplotlib.pyplot as plt
-import warnings
 from matplotlib import style
 from collections import Counter
 import pandas as pd
 import random
-
+# Style the final graph
 style.use('fivethirtyeight')
+fig, (accPlt, confPlt) = plt.subplots(1, 2)
 
-dataset = {'k': [[1,2],[2,3],[3,1]], 'r': [[6,5],[7,7],[8,6]]}
-
-new_features = [5,7]
-
-
-
-def k_nearest_neighbors(data, predict, k = 3):
-	if len(data) >= k:
-		warnings.warn('K is set to a value less than total voting groups')
+#---------------K NEAREST NEIGHBOR---------------
+# Function to find K Nearest Neighbors
+def k_nearest_neighbors(data, predict, k):
+	# Array to keep track of all the distances
 	distances = []
 	# For each type of data in the passed dataset
 	for group in data:
@@ -32,40 +28,139 @@ def k_nearest_neighbors(data, predict, k = 3):
 	votes = [i[1] for i in sorted(distances)[:k]]
 	# Get the mode from the votes list
 	vote_result = Counter(votes).most_common(1)[0][0]
+	confidence = Counter(votes).most_common(1)[0][1] / k
 	# Return result
-	return vote_result
+	return vote_result, confidence
+#------------------------------------------------
 
+#---------------DATA DISC -> MEMORY---------------
+# Get MNIST training data
 df = pd.read_csv("MNIST_training.csv")
 train_data = df.astype(int).values.tolist()
 
+# Get MNIST test data
 df = pd.read_csv("MNIST_test.csv")
 test_data = df.astype(int).values.tolist()
+#-------------------------------------------------
 
-
+#---------------PREPROCESS THE DATA---------------
+# Put training set into dictionary
 train_set = {new_list: [] for new_list in range(10)}
-test_set = {new_list: [] for new_list in range(10)}
-# result = k_nearest_neighbors(dataset, new_features, k = 3)
-
 for i in train_data:
 	train_set[i[0]].append(i[1:785])
 
+# Put test set into dictionary
+test_set = {new_list: [] for new_list in range(10)}
 for i in test_data:
 	test_set[i[0]].append(i[1:785])
+#-------------------------------------------------
 
-correct = 0
-total = 0
+#---------------FIND THE BEST K VAL---------------
+# Counters to keep track along the way
+correct = total = accuracy = bestAccuracy = bestK = 0
+# Lists to categorize accuracies of K
+badK = []
+avgK = []
+goodK = []
+# Threshold for bad/okay accuracy
+BAD_ACC, OKAY_ACC = 80, 85
+# Test different values of K
+for i in range(1, 100):
+	# For debugging
+	print("testing ", i)
+	# Get each group of numbers
+	for group in test_set:
+		# Test each sample in each group
+		for data in test_set[group]:
+			# Guess what class test item is in
+			guess, confidence = k_nearest_neighbors(train_set, data, k = i)
+			# Test if guess is correct
+			if group == guess:
+				correct += 1
+			# Increment total
+			total += 1
+	# Compute accuracy for tested K
+	accuracy = 100 * (correct/total)
+	# Graph red if terrible value of K
+	if accuracy < BAD_ACC:
+		badK.append([i, accuracy])
+	# Graph yellow if okayish value of K
+	elif accuracy < OKAY_ACC:
+		avgK.append([i, accuracy])
+	# Graph green if good value of K
+	else:
+		goodK.append([i, accuracy])
+	# Save best K value
+	if accuracy > bestAccuracy:
+		bestAccuracy = accuracy
+		bestK = i
+# Turn each array in a numpy array
+badK = np.array(badK)
+avgK = np.array(avgK)
+goodK = np.array(goodK)
+# Print best accuracy and k value to get it
+print("Best Accuracy: ", bestAccuracy, "%")
+print("Best Value For K: ", bestK)
+#-------------------------------------------------
 
+#---------------SHOW CONFIDENCE IN K---------------
+i = 0
+correct = []
+wrong = []
+guesses = []
 for group in test_set:
+	# Test each sample in each group
 	for data in test_set[group]:
-		vote = k_nearest_neighbors(train_set, data, k = 15)
-		if group == vote:
-			correct += 1
-		total += 1
+		# Guess what class test item is in
+		guess, confidence = k_nearest_neighbors(train_set, data, k = bestK)
+		if(guess == group):
+			guesses.append([group, guess, confidence])
+			correct.append([i, confidence])
+		else:
+			guesses.append([group, guess, confidence])
+			wrong.append([i, confidence])
+		i += 1
+correct = np.array(correct)
+wrong = np.array(wrong)
+guesses = np.array(guesses)
 
-print("Accuracy: ", correct/total)
+for attempt in guesses:
+	print("Actual: ", attempt[0], " Guess: ", attempt[1], " Confidence: ", attempt[2])
+#--------------------------------------------------
 
-# for i in dataset:
-# 	for ii in dataset[i]:
-# 		plt.scatter(ii[0], ii[1], s = 100, color = i)
-# plt.scatter(new_features[0], new_features[1], color = result)
-# plt.show()
+#---------------VISUALIZE FINDINGS---------------
+# ACCURACY PLOT
+# Label axis
+accPlt.set(xlabel = "Values of K", ylabel = "Accuracy (%)")
+# Title plot
+accPlt.set_title("Accuracy Per K")
+# Plot data
+if(len(badK) > 0):
+	label = "Accuracy < " + str(BAD_ACC) + "%"
+	accPlt.scatter(badK[:,0], badK[:,1], color = 'r', label = label)
+if(len(avgK) > 0):
+	label = "Accuracy < " + str(OKAY_ACC) + "%"
+	accPlt.scatter(avgK[:,0], avgK[:,1], color = 'y', label = label)
+if(len(goodK) > 0):
+	label = "Accuracy > " + str(OKAY_ACC) + "%"
+	accPlt.scatter(goodK[:,0], goodK[:,1], color = 'g', label = label)
+# Show labels in the legend
+accPlt.legend(bbox_to_anchor = (1.05, 1), loc = 'upper left', borderaxespad = 0.0)
+
+# CONFIDENCE PLOT
+# Label axis
+confPlt.set(xlabel = "Index Of Test Value", ylabel = "Confidence (%)")
+# Title plot
+label = "Confidence Per Tested Value (Best K: " + str(bestK) + ")"
+confPlt.set_title(label)
+# Plot data
+if(len(correct) > 0):
+	confPlt.scatter(correct[:,0], correct[:,1], color = 'g', label = "Correct")
+if(len(wrong) > 0):
+	confPlt.scatter(wrong[:,0], wrong[:,1], color = 'r', label = "Incorrect")
+# Show labels in the legend
+confPlt.legend(bbox_to_anchor = (1.05, 1), loc = 'upper left', borderaxespad = 0.0)
+
+# Show plots
+plt.show()
+#------------------------------------------------
