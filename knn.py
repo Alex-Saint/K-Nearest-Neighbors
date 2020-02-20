@@ -66,6 +66,8 @@ goodK = []
 BAD_ACC, OKAY_ACC = 80, 85
 # Test different values of K
 for i in range(1, 100):
+	if i % 2 == 0:
+		continue
 	# For debugging
 	print("testing ", i)
 	# Get each group of numbers
@@ -98,32 +100,41 @@ for i in range(1, 100):
 badK = np.array(badK)
 avgK = np.array(avgK)
 goodK = np.array(goodK)
-# Print best accuracy and k value to get it
-print("Best Accuracy: ", bestAccuracy, "%")
-print("Best Value For K: ", bestK)
 #-------------------------------------------------
 
 #---------------SHOW CONFIDENCE IN K---------------
-i = 0
-correct = []
+# Lists for later graphs
+right = []
 wrong = []
 guesses = []
+# Counts to calculate accuracy later
+correct = total = 0
+# Iterate through test data
+print("Testing Test Dataset Against Training Dataset Using Best K")
 for group in test_set:
 	# Test each sample in each group
 	for data in test_set[group]:
 		# Guess what class test item is in
 		guess, confidence = k_nearest_neighbors(train_set, data, k = bestK)
+		# If guess is correct
 		if(guess == group):
+			correct += 1
 			guesses.append([group, guess, confidence])
-			correct.append([i, confidence])
+			right.append([total, confidence])
+		# If guess is incorrect
 		else:
 			guesses.append([group, guess, confidence])
-			wrong.append([i, confidence])
-		i += 1
-correct = np.array(correct)
+			wrong.append([total, confidence])
+		total += 1
+# Turn each array in a numpy array
+right = np.array(right)
 wrong = np.array(wrong)
 guesses = np.array(guesses)
 
+# Print best k, accuracy with that k
+print("Best Value for K: ", bestK)
+print("Best Accuracy: ", 100 * (correct / total), "%")
+# Print actual vs guess and confidence in answer
 for attempt in guesses:
 	print("Actual: ", attempt[0], " Guess: ", attempt[1], " Confidence: ", attempt[2])
 #--------------------------------------------------
@@ -154,8 +165,8 @@ confPlt.set(xlabel = "Index Of Test Value", ylabel = "Confidence (%)")
 label = "Confidence Per Tested Value (Best K: " + str(bestK) + ")"
 confPlt.set_title(label)
 # Plot data
-if(len(correct) > 0):
-	confPlt.scatter(correct[:,0], correct[:,1], color = 'g', label = "Correct")
+if(len(right) > 0):
+	confPlt.scatter(right[:,0], right[:,1], color = 'g', label = "Correct")
 if(len(wrong) > 0):
 	confPlt.scatter(wrong[:,0], wrong[:,1], color = 'r', label = "Incorrect")
 # Show labels in the legend
