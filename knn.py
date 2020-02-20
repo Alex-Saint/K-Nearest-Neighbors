@@ -1,18 +1,13 @@
 # Libraries
 import numpy as np
-from math import sqrt
-import matplotlib.pyplot as plt
-from matplotlib import style
-from collections import Counter
 import pandas as pd
-import random
-# Style the final graph
-style.use('fivethirtyeight')
-fig, (accPlt, confPlt) = plt.subplots(1, 2)
+import matplotlib.pyplot as plt
+import matplotlib.style
+from collections import Counter
 
 #---------------K NEAREST NEIGHBOR---------------
 # Function to find K Nearest Neighbors
-def k_nearest_neighbors(data, predict, k):
+def k_nearest_neighbors(data, test, k):
 	# Array to keep track of all the distances
 	distances = []
 	# For each type of data in the passed dataset
@@ -20,17 +15,17 @@ def k_nearest_neighbors(data, predict, k):
 		# For each feature of the given type
 		for features in data[group]:
 			# Get euclidean distance
-			euclidean_distance = np.linalg.norm(np.array(features) - np.array(predict))
+			euclidean_distance = np.linalg.norm(np.array(features) - np.array(test))
 			# Add distance and classification for distance to distances list
 			distances.append([euclidean_distance, group])
 
 	# Get the k shortest distances from the test point
 	votes = [i[1] for i in sorted(distances)[:k]]
 	# Get the mode from the votes list
-	vote_result = Counter(votes).most_common(1)[0][0]
+	guess = Counter(votes).most_common(1)[0][0]
 	confidence = Counter(votes).most_common(1)[0][1] / k
 	# Return result
-	return vote_result, confidence
+	return guess, confidence
 #------------------------------------------------
 
 #---------------DATA DISC -> MEMORY---------------
@@ -83,6 +78,7 @@ for i in range(1, 100):
 			total += 1
 	# Compute accuracy for tested K
 	accuracy = 100 * (correct/total)
+	print("{}'s accuracy was {}%".format(i, accuracy))
 	# Graph red if terrible value of K
 	if accuracy < BAD_ACC:
 		badK.append([i, accuracy])
@@ -140,6 +136,10 @@ for attempt in guesses:
 #--------------------------------------------------
 
 #---------------VISUALIZE FINDINGS---------------
+# Add lines to make graph more readable
+matplotlib.style.use('fivethirtyeight')
+# Multiple graphs in 1 figure
+fig, (accPlt, confPlt) = plt.subplots(1, 2)
 # ACCURACY PLOT
 # Label axis
 accPlt.set(xlabel = "Values of K", ylabel = "Accuracy (%)")
